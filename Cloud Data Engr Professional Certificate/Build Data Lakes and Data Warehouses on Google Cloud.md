@@ -111,3 +111,195 @@ This feature allows Cymbal to query past versions of their data. If a report was
 Iceberg enables reliable, concurrent operations on the data, ensuring that multiple processes can read and write to the same tables without data corruption.
 
 By using Apache Iceberg with Cloud Storage, Cymbal can treat their collection of data files as performant, queryable tables, bringing the benefits of a data warehouse to their flexible data lake.
+
+#### BigQuery as the central processing engine
+While Cloud Storage and Iceberg provide a flexible, open-standard foundation for storing vast amounts of raw and structured data, BigQuery is the high-performance engine that activates it. By creating BigLake tables, Cymbal can use BigQuery's familiar SQL interface to directly and securely query the Iceberg-formatted data in their Cloud Storage data lake.
+
+This means they do not have to duplicate data or perform costly extract, transform, load (ETL) processes to run analytics. Analysts get the performance and features of a premier data warehouse while querying data directly in their open-format data lake.
+
+Furthermore, BigQuery also provides its own optimized, managed storage. Cymbal can use this native storage for their most frequently accessed, or "hot," datasets that require the fastest query performance, like key marketing performance dashboards. This gives them a unified platform to analyze data in their data lake, in BigQuery's native storage, or both, all through a single interface.
+
+#### Combining operational data in AlloyDB
+While Cloud Storage and open table formats like Iceberg are ideal for large-scale analytical data, operational data that powers Cymbal's daily operations require a different solution. This is where AlloyDB for PostgreSQL is an excellent choice.
+
+Operational data is the real-time, constantly changing information that drives Cymbal's immediate business processes.
+
+This includes
+* Customer order processing
+* Inventory management
+* User login information
+
+These use cases require a database that can handle very high transaction volumes, provide extremely low latency for reads and writes, and ensure strong data consistency. Analytical databases are not designed for these real-time operational demands.
+
+AlloyDB is a fully managed, PostgreSQL-compatible database service built for demanding enterprise workloads. It combines the familiarity and flexibility of PostgreSQL with the performance, availability, and scalability of the cloud for critical operational applications.
+
+#### Combining operational and analytical data with federated queries
+This feature allows Cymbal to query data in external systems, like their operational AlloyDB database, in real time without moving or copying it into BigQuery. This creates a bridge between their live operational data and their historical analytical data.
+
+Here is how Cymbal would combine real-time inventory data from AlloyDB with historical sales data from their Iceberg tables:
+
+1. First, a data administrator creates a secure connection resource in BigQuery. This connection contains the credentials and configuration details to allow BigQuery to communicate with Cymbal's AlloyDB instance. This is a one-time setup.
+1. To access the AlloyDB data, an analyst uses the EXTERNAL_QUERY SQL function within a BigQuery query. This function takes two arguments: the connection ID and the query to be executed on the AlloyDB database.
+
+#### Real world use case
+Optimizing marketing and supply chain with a data lakehouse
+
+Cymbal recently launched a major marketing campaign for its new "Evergreen" outdoor collection. To measure the campaign's true return on investment, their data team leveraged their Google Cloud data lakehouse with the goal of moving beyond simple sales metrics to understand the complete customer journey.
+
+In summary, for Cymbal, a data lakehouse built with Cloud Storage as its foundation, enhanced by open table formats like Apache Iceberg, powered by BigQuery, and integrated with AlloyDB for critical operational data, provides a powerful, flexible, and future-proof data architecture. This setup enables them to leverage all their data assets, from raw multimedia to real-time transactions, to drive their business forward with smart decisions based on high quality data.
+
+## Chapter 3
+### BigQuery fundamentals
+Cymbal collects massive amounts of data daily: sales transactions, website clicks, inventory levels, and customer feedback. A traditional, on-premises data warehouse might struggle to keep up with this volume and variety.
+
+In the traditional data warehousing world, managing this kind of scale is a constant challenge.
+
+Cymbal’s data architects would have to spend a significant amount of time on capacity planning. How many servers do we need for the upcoming holiday shopping season? How do we handle unexpected spikes in traffic? They would be responsible for provisioning hardware, installing and patching software, and manually rebalancing data as it grows. This operational overhead is not only expensive but also slows down the ability of the analytics teams to get timely insights.
+
+This is the exact problem that BigQuery was designed to solve.
+
+#### Fully managed
+The infrastructure (like the hardware, the networking, the low-level software) is all handled by Google. Your team doesn't need to worry about patches, updates, or hardware failures.
+
+#### Severless
+Serverless takes things a step further. You don't have to provision or manage any servers at all. You simply load your data and start querying. BigQuery automatically allocates the necessary resources to run your queries and scales them up or down based on the complexity of your request.
+
+The magic behind BigQuery is its architecture. BigQuery separates storage from compute.
+
+![BigQuery Architecture](../resources/bigquery_architecture.png)
+
+Think of it like a library. The books are the data, stored reliably and inexpensively in Google's distributed file system. When you want to find specific information, the librarians are the compute resources. BigQuery can call upon thousands of librarians (or compute workers) simultaneously to scan the entire library (your data) very quickly. This distributed processing engine, called Dremel, is what makes your queries run so fast.
+
+Because storage and compute are separate, they can scale independently. If Cymbal's data grows, more storage is automatically utilized. If they need to run more complex queries, they can use more compute power and only pay for it while the query is running, depending on your billing options. This separation is a game-changer for managing costs and ensuring performance.
+
+Let's break down how BigQuery achieves its incredible speed by examining two core concepts: **slots** and **shuffle.**
+
+#### What is a slot?
+Think of a slot as a virtual worker—a small, self-contained unit of computational power that includes CPU, RAM, and network bandwidth. When you run a query, BigQuery's Dremel engine assigns potentially thousands of these slots to your job. Each slot processes a small piece of your data simultaneously. This is the "massively parallel processing" that allows BigQuery to scan terabytes of data so quickly.
+
+#### What is shuffle?
+When the results from all those parallel workers need to be combined, such as for a `GROUP BY` or a `JOIN`, the shuffle comes in. Shuffle is the process of redistributing the intermediate data that the slots have processed. Using Google’s petabit internal network, Jupiter, shuffle gathers and reorganizes this data, sending it to the next set of slots for further processing like aggregation or joining. This incredibly fast redistribution of data between query stages is essential for executing complex analytical queries efficiently at a massive scale.
+
+BigQuery's groundbreaking separation of compute and storage is the key to its versatility in querying data from multiple sources. Think of the compute engine, Dremel, as a flexible data analyst that is not tied to a single filing cabinet.
+
+### Partitioning and clustering in BigQuery
+#### Partitioning
+Partitioning is like adding dividers to a filing cabinet. Instead of one giant drawer, you have separate sections for each year, month, or day. In BigQuery, you can partition a table based on a date or an integer column.   
+
+Let’s examine some dummy sales data from Cymbal at a small scale.
+
+Dummy sales transactions table (Cymbal)
+
+| transaction_date | customer_id | product_category | sales_amount |
+| ---------------- | ----------- | ---------------- | ------------ |
+| 8/1/2025 | CUST002 | Headsets | 52 |
+| 8/1/2025 | CUST002 | Keyboards | 186 |
+| 8/1/2025 | CUST003 | Headsets | 465 |
+| 8/1/2025 | CUST005 | Headsets | 57 |
+| 8/2/2025 | CUST003 | Shoes | 413 |
+| … | … | … | … |
+
+##### Partitioned views by transaction_date
+###### Partition: 2025-08-01
+| transaction_date | customer_id | product_category | sales_amount |
+| ---------------- | ----------- | ---------------- | ------------ |
+| 8/1/2025 | CUST002 | Headsets | 52 |
+| 8/1/2025 | CUST002 | Keyboards | 186 |
+| 8/1/2025 | CUST003 | Headsets | 465 |
+| 8/1/2025 | CUST005 | Headsets | 57 |
+
+###### Partition: 2025-08-02
+| transaction_date | customer_id | product_category | sales_amount |
+| ---------------- | ----------- | ---------------- | ------------ |
+| 8/2/2025 | CUST003 | Shoes | 413 |
+| 8/2/2025 | CUST002 | Headsets | 118 |
+| 8/2/2025 | CUST004 | Consoles | 455 |
+
+When you run a query that filters by a specific date range, like for sales from last week, BigQuery knows it only needs to scan the partitions for those specific days. It completely ignores all the other partitions, which drastically reduces the amount of data scanned. This makes your queries faster and cheaper.
+
+#### Clustering
+While partitioning divides the data into large chunks, clustering sorts the data within each of those chunks. Think of it as organizing the files within each drawer of your filing cabinet alphabetically by customer name.
+
+For Cymbal, you might cluster a partitioned sales table by `customer_id` or `product_category`. If you run a query to find all purchases made by a specific customer within the last month, BigQuery first goes to the correct monthly partition.
+
+##### Clustering example (partition: 2025-08-01, clustered by customer_id)
+| transaction_date | customer_id | product_category | sales_amount |
+| ---------------- | ----------- | ---------------- | ------------ |
+| 8/1/2025 | CUST002 | Headsets | 52 |
+| 8/1/2025 | CUST002 | Keyboards | 186 |
+| 8/1/2025 | CUST002 | Headsets | 465 |
+| 8/1/2025 | CUST002 | Headsets | 57 |
+
+
+```SQL
+SELECT *
+FROM cymbal_sales
+WHERE transaction_date = '2025-08-01'
+  AND customer_id = 'CUST003';
+```
+
+Now because the data is sorted by `customer_id`, it can jump directly to the data for that customer instead of reading through the entire partition.
+
+#### Partioning and Clustering in Iceberg
+BigQuery works differently depending on whether you’re using its native tables or external Apache Iceberg tables stored in Cloud Storage.
+
+##### Partitioning
+When querying Apache Iceberg tables in Cloud Storage, BigQuery doesn't implement its own partitioning and clustering. Instead, it intelligently leverages the existing structure defined in the Iceberg table's own metadata, demonstrating the power of open standards.
+
+With partitioning, the partitions are typically defined and written by a data processing engine like Apache Spark. For instance, a sales data table might be partitioned by transaction_date. The Iceberg metadata meticulously tracks which specific data files in Cloud Storage belong to which date.
+
+When you run a query in BigQuery with a filter like WHERE transaction_date = '2025-08-15', BigQuery (via BigLake) first reads this metadata.
+
+It instantly identifies the exact set of files corresponding to that date and prunes away all others. This tells the query workers to ignore irrelevant data, drastically reducing the amount of data scanned, which lowers costs and accelerates query performance.
+
+##### Clustering
+The concept of clustering in BigQuery is mirrored by data sorting and file-level statistics in Iceberg. The data within Iceberg's Parquet or ORC files is often sorted by specific columns, like customer_id.
+
+The Iceberg metadata then stores statistics, such as the minimum and maximum customer_id values, for each individual data file.
+
+##### Predicate Pushdown
+If your BigQuery query filters for a specific customer, the query planner consults these statistics. It can then skip reading any files whose min/max range doesn't contain the requested customer_id, even if they are in the correct partition.
+
+This powerful predicate pushdown provides a finer-grained level of data pruning, ensuring maximum query efficiency on your open data lakehouse.
+
+Partitioning and clustering together give BigQuery fine-grained control over how your data is queried, leading to significant performance improvements and cost savings, especially as your data grows.
+
+### Introducing BigLake and external tables
+#### Data warehouse vs. data lake
+Historically, enterprise data was managed in two distinct ways: the data warehouse - the traditional standard for decades - perfect for structured, curated data used for business intelligence, and the data lake, emerging around 2010 as low-cost repository for storing vast amounts of raw data in any format.
+
+This separation, while logical, often leads to significant challenges. It creates data silos, making it difficult to analyze different types of data together. It requires building complex ETL pipelines to move and duplicate data from the lake to the warehouse, which introduces latency and increases costs. It also complicates data governance, as you have to manage security and access policies across two different systems. To solve these problems, a new architectural pattern has emerged: the lakehouse.
+
+#### Lakehouse architecture
+A lakehouse architecture combines the key benefits of both worlds: the low-cost, flexible storage of a data lake with the powerful querying, transaction management, and governance features of a data warehouse, all within a single, unified system. On Google Cloud, the service that makes this powerful architecture a reality is BigLake.
+
+##### BigLake and external tables
+BigLake acts as a storage engine and connector that allows you to extend the capabilities of BigQuery to your data in object storage, like Google Cloud Storage. BigLake lets you create tables in BigQuery that do not hold the data themselves but instead point to the data files living in your data lake. These are called external tables.
+
+Let's consider how Cymbal can use this.
+
+Cymbal's data science team stores raw, semi-structured web server log files in JSON format in a Cloud Storage bucket. To analyze this clickstream data, they would historically need a complex data pipeline to parse and load the data into BigQuery.
+
+With BigLake, the process is much simpler. You can create a BigLake external table directly on top of the JSON files in Cloud Storage. Now, you can use the familiar BigQuery SQL interface to query this clickstream data instantly, as if it were a native BigQuery table.
+
+You can even join this external table with a native BigQuery sales table to discover correlations between website behavior and purchasing habits, without ever moving or duplicating data.
+
+##### Governance and security
+One of the most powerful features of BigLake is how it centralizes governance and security. You can apply fine-grained security controls, including row-level and column-level security, directly on the BigLake tables within BigQuery. This is enabled through access delegation.
+
+When you create a BigLake table, you associate it with a service account that has permission to read the underlying data in Cloud Storage. The end-user querying the table only needs permission on the BigQuery table, not on the Cloud Storage bucket. This means Cymbal's governance team can grant a marketing analyst access to query only specific columns, like product_page_url and timestamp, while masking sensitive PII columns like ip_address. The analyst gets the data they need, but can never bypass BigQuery security controls to access the raw files in the lake.
+
+#### Open standards
+Open standards like Apache Iceberg ensure your data is flexible, interoperable, and not locked into one vendor. Let’s explore what Iceberg brings to a lakehouse and how BigQuery with BigLake supports it.
+
+Lakehouses rely on open, standardized formats to avoid lock-in and ensure interoperability.
+
+Iceberg brings the reliability of traditional SQL tables to your data lake, with features like ACID transactions, schema evolution, and time travel.
+
+BigQuery, through BigLake, offers first-class, native support for Apache Iceberg. This is a game-changer. Cymbal can have their Spark jobs write data into Iceberg-formatted tables in their Cloud Storage data lake. Then, they can register that Iceberg table with BigLake, and it instantly becomes available for high-performance querying inside BigQuery.
+
+
+You are not limited to just reading the data. You can run UPDATE, DELETE, and MERGE statements directly from BigQuery on your Iceberg tables. This means Cymbal's data engineering team can perform data corrections or handle right-to-be-forgotten requests on their data lake data using standard SQL in BigQuery.
+
+By embracing BigLake and open formats like Iceberg, Cymbal can build a truly unified and open data platform. They get a single pane of glass for analytics, a consistent governance model across all their data, and the flexibility to use the best tool for the job, whether that's Spark for data processing or BigQuery for interactive analytics, all operating on a single source of truth.
+
