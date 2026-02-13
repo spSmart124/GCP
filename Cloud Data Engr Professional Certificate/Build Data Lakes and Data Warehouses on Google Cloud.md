@@ -303,3 +303,228 @@ You are not limited to just reading the data. You can run UPDATE, DELETE, and ME
 
 By embracing BigLake and open formats like Iceberg, Cymbal can build a truly unified and open data platform. They get a single pane of glass for analytics, a consistent governance model across all their data, and the flexibility to use the best tool for the job, whether that's Spark for data processing or BigQuery for interactive analytics, all operating on a single source of truth.
 
+
+## Chapter 4
+### Advanced lakehouse patterns and data governance
+#### Data governance and security in a unified platform
+For a global online retailer like Cymbal, managing data responsibly is not just a technical task, it is a core business function.
+
+They handle vast amounts of customer data, sales transactions, and inventory information. Ensuring this data is accurate, discoverable, and secure is crucial for personalized marketing and efficient supply chain management.
+
+Dataplex – The metadata hub
+Select each accordion heading to expand and read more details.
+
+##### Metadata
+Metadata is data about data. It identifies:
+* who created the data,
+* when it was created,
+* what it contains,
+* how it relates to other data,
+* who owns it, and
+* its security sensitivity.
+##### Dataplex for your Organization
+Without a centralized metadata system, data management can be difficult. Dataplex provides a unified metadata hub. For Cymbal, Dataplex acts as a universal catalog for all their data assets, whether they reside in BigQuery, Cloud Storage, or BigLake.
+
+For Cymbal's data analysts, this centralized catalog is critical. Instead of searching through different systems to find the required datasets, they use the Dataplex catalog to discover data, understand data lineage, and manage and augment metadata.
+
+##### Business Impact
+By providing a single reference source, Dataplex helps Cymbal manage data at scale while ensuring consistency and quality.
+
+#### Sensitive Data Protection
+Cymbal has a responsibility to protect its customers' sensitive information, such as names, addresses, and credit card numbers. A data breach can damage their reputation and lead to significant financial penalties. Sensitive Data Protection is an essential tool for this purpose.
+
+* Sensitive Data Protection allows Cymbal to automatically discover, classify, and protect sensitive data across their lakehouse. Let's learn more about each function.
+* Discovery: Cymbal runs scans on BigQuery tables and Cloud Storage buckets to identify sensitive data. For example, they can configure a scan to look for patterns that match credit card numbers or email addresses.
+* Classification: Once identified, data is classified by sensitivity level. This ensures the right security controls are applied.
+* Protection: For protection, Cymbal can use techniques like masking or tokenization to de-identify the data. For instance, a customer support representative might only see the last four digits of a credit card number, while the full number is replaced with a non-sensitive token.
+
+
+#### Identity and Access Management (IAM)
+Controlling data access is a cornerstone of effective governance. Identity and Access Management (IAM) in Google Cloud provides the foundation for access control.
+
+Cymbal follows the principle of least privilege, meaning users are given only the minimum access necessary to perform their jobs. For their lakehouse, this translates to specific IAM best practices for each Google Cloud service.
+
+##### Cloud Storage
+* Access controlled at the bucket level.
+* Typically restricted to engineers and service accounts responsible for data ingestion.
+
+##### BigQuery
+* Granular IAM control at dataset and table level.
+* Analysts: read-only access to curated sales data.
+* Data scientists: create/modify tables in sandbox datasets.
+
+##### BigLake
+Extends BigQuery’s fine-grained security to Cloud Storage data. This provides a significant advantage.
+
+#### Fine-grained security
+Cymbal applies row-level and column-level security for even greater control:
+
+Column-level security: Restricts access to specific columns in a table. For example, a marketing analyst might be able to access a customer's purchase history but not their contact information. This is effective for protecting Personally Identifiable Information (PII).
+
+Row-level security: Filters which rows a user can access. A regional sales manager for North America, for instance, would only have access to sales data for that region. This is particularly useful for large, multinational companies like Cymbal.
+
+For BigLake tables in Cloud Storage, dynamic data masking can also be applied.
+
+#### Data Loss Prevention
+In this scenario, Cymbal has launched a new loyalty program. New customer information has been collected and loaded into a BigQuery table named loyalty_program_customers. This table contains standard information, such as names and purchase histories, and also includes potentially sensitive data, such as email addresses, phone numbers, and free-text comments from customer feedback surveys.
+
+Before this data is made available to the marketing analytics team, any PII must be properly handled to avoid exposing sensitive customer details in analytics dashboards.
+
+#### Analytics and machine learning on the lakehouse
+A secure and well-governed data lakehouse gives Cymbal the foundation to generate powerful insights and predictions with machine learning.
+
+Traditionally, building ML models required moving data from a data warehouse into a separate environment. This process was often slow, expensive, and created data silos.
+
+In this lesson, you’ll explore how the Google Cloud lakehouse architecture enables Cymbal to perform advanced analytics and machine learning directly on its data. This approach is faster, more efficient, and more accessible.
+
+##### BigQuery ML: Machine learning for data analysts
+One of the most powerful tools in the Google Cloud analytics toolkit is BigQuery ML.
+It allows data analysts and data scientists at Cymbal to build and deploy machine learning models using simple SQL queries. This makes machine learning accessible to more people, so you don't need to be an expert in Python or TensorFlow to create valuable predictive models.
+
+To identify customers who are at risk of not making another purchase, the marketing analytics team can use BigQuery ML and a few SQL statements.
+
+###### Feature engineering
+
+The first step is to prepare the data. The analysts write a SQL query to create features, or signals, that might predict churn.
+
+These could include the following fields:
+* recency: days since last purchase
+* frequency: purchases in the last year
+* monetary_value: total spent
+* days_since_first_purchase: customer tenure
+
+###### Model training
+After the features are ready, they train a model with a single CREATE MODEL statement in SQL. For this binary classification problem (churn or no churn), a logistic regression or a boosted tree model is a good choice.
+
+Review the sample code below.
+
+```SQL
+CREATE OR REPLACE MODEL cymbal_ecommerce.customer_churn_predictor
+OPTIONS(model_type='LOGISTIC_REG') AS
+SELECT
+customer_id,
+recency,
+frequency,
+monetary_value,
+(total_purchases > 1) AS will_return -- This is our label
+FROM
+cymbal_ecommerce.customer_purchase_summary;
+```
+
+###### Model evaluation
+After the model is trained, the analysts evaluate its performance using the ML.EVALUATE function. This provides metrics like accuracy, precision, and recall helping them understand how well the model is performing.
+
+###### Prediction
+The final step is to use the model to make predictions on new data. With the ML.PREDICT function, they can get a list of all customers and their probability of churning. This list can then be used to create targeted marketing campaigns to re-engage at-risk customers.
+
+##### Integrating with Vertex AI for advanced ML
+While BigQuery ML is ideal for many use cases, you sometimes need the power and flexibility of a comprehensive machine learning platform. For these situations, you can use Vertex AI. Vertex AI is the Google Cloud end-to-end platform for building, deploying, and managing ML models.
+
+A key advantage of the Google Cloud lakehouse is the seamless integration between BigQuery and Vertex AI. Data scientists at Cymbal can use this integration for more complex projects, like building a product recommendation engine.
+
+###### Data exploration and preparation in BigQuery
+Data scientists start by exploring the purchase history data in BigQuery. They might use the built-in notebook environment, which is powered by Vertex AI Notebooks, to write Python code and SQL queries to analyze and prepare the data for training.
+
+###### Training a custom model in Vertex AI
+For a recommendation engine, they might build a custom model using a library like TensorFlow or PyTorch. They can use Vertex AI Training to run their training code on a managed, scalable infrastructure. Vertex AI can automatically provision the necessary compute resources, and the training job can read data directly from BigQuery, which eliminates the need for manual data extraction.
+
+###### Model registration and deployment
+After the model is trained, it's registered in the Vertex AI Model Registry. The registry provides a central place to manage and version all of their models. From the registry, they can deploy the model to an endpoint with a single click. This endpoint provides a REST API that the Cymbal website can call to get real-time product recommendations for each user.
+
+###### MLOps and model monitoring
+Vertex AI also provides a suite of MLOps tools to automate and monitor the entire machine learning lifecycle. They can set up pipelines to automatically retrain and redeploy their recommendation model as new purchase data becomes available. They can also monitor the model for issues like prediction drift to ensure that its performance doesn't degrade over time.
+
+
+By combining the data warehousing power of BigQuery with the advanced ML capabilities of Vertex AI, Cymbal can build sophisticated, production-grade machine learning solutions that improve business outcomes. They can move from idea to production faster than ever before, all within a unified and secure data ecosystem.
+
+#### Real-world lakehouse architectures and migration strategies
+While every organization’s needs are unique, there are proven patterns for building a lakehouse on Google Cloud.
+
+##### The medallion architecture
+This architecture organizes data into three distinct zones: Bronze, Silver, and Gold.
+
+###### Bronze Zone
+This layer contains raw data. 
+
+This is the landing zone for all raw data. For Cymbal, this would include:
+* Clickstream data from their website, streamed in real-time through Pub/Sub and landing in a Cloud Storage bucket.
+* Batch exports of transactional data from their e-commerce database, saved as CSV or Avro files in Cloud Storage.
+* JSON data from their social media marketing campaigns.
+
+The data in the bronze zone is normally immutable; it's a historical record of what was received.
+
+###### Silver Zone
+This layer contains Cleansed and Conformed data.
+
+In this zone, the data is cleaned, validated, and enriched. This is where initial transformations happen. For Cymbal, this would involve:
+
+* Parsing the raw clickstream data to create structured sessions.
+* Joining the transactional data with customer dimension tables.
+* Standardizing date and time formats.
+
+Data in the Silver zone is often stored in an open format like Parquet or as BigLake tables, making it queryable through BigQuery but still residing in Cloud Storage.
+
+###### Gold Zone
+This layer contains curated business-level data.
+
+This is the final, highly refined layer. The data here is aggregated and optimized for analytics and reporting. This data almost always resides in native BigQuery tables for maximum query performance. For Cymbal, this would be their single source of truth for key business metrics.
+
+Examples include:
+* Aggregated daily sales tables.
+* Customer 360-degree view tables.
+* Inventory performance summaries.
+
+##### Migration strategies
+For a company like Cymbal, which might be running on a traditional on-premises data warehouse like Teradata or Hadoop, migrating to a cloud-native lakehouse is a significant project. A complete, one-time migration is often too risky and disruptive. Instead, a phased, use-case-driven approach is usually more successful.
+
+1. Step 1
+Establish the foundation
+
+The first step is to set up the core infrastructure on Google Cloud.
+
+This includes:
+
+* Setting up a Google Cloud project with the appropriate IAM permissions and networking.
+* Creating Cloud Storage buckets for the Bronze, Silver, and Gold zones.
+* Setting up Dataplex to manage metadata and governance across the new lakehouse.
+
+1. Step 2
+Start with a high-impact use case
+
+Instead of migrating everything at once, Cymbal could pick one specific business problem to solve. A great candidate would be marketing analytics.
+
+This is an area where having access to both structured and unstructured data can provide significant value.
+
+1. Step 3
+Migrate the data
+
+For the marketing analytics use case, they would need to migrate relevant data.
+
+This could involve:
+
+* Using BigQuery Data Transfer Service to set up recurring transfers of their existing sales and customer data from their on-premises warehouse to BigQuery.
+* Setting up a data pipeline with a tool like Dataflow to ingest new, real-time clickstream data into their Cloud Storage Bronze zone.
+
+1. Step 4
+Build the new pipelines and reports
+
+With the data flowing into Google Cloud, they can start building the new data pipelines to populate their Silver and Gold zones.
+
+The marketing team can then build new dashboards and reports in a tool like Looker, pointing them to the new Gold tables in BigQuery.
+
+1. Step 5
+Decommission and iterate
+
+Once the new marketing analytics solution is running successfully and business users approve the solution, they can decommission the old on-premises marketing reports. This demonstrates value and builds momentum for the next phase of the migration.
+
+They can then repeat this process for other use cases, such as supply chain optimization or financial reporting, gradually migrating more workloads to the cloud.
+
+##### Cost management and optimization
+A key benefit of the cloud is the pay-as-you-go model, but it also requires a proactive approach to cost management. Here are some best practices that Cymbal would implement:
+1. **Choose the right storage class:** Not all data needs to be accessed with the same frequency. For the raw data in their Bronze zone, which might be accessed infrequently, they can use a cheaper storage class like Nearline or Coldline in Cloud Storage.
+1. **Optimize BigQuery queries:** They can train their analysts to write efficient SQL queries. BigQuery provides tools to estimate the cost of a query before it's run. They can also use features like partitioning and clustering on their tables to reduce the amount of data scanned by each query.
+1. **Use BigQuery's flat-rate pricing:** For predictable workloads, Cymbal can switch from on-demand pricing to a flat-rate model, where they purchase dedicated query processing capacity at a fixed monthly cost.
+1. **Set up budgets and alerts:** In Google Cloud's billing console, they can set up budgets for their projects and create alerts that notify them when costs are approaching their limits.
+
+
+By embracing a modern lakehouse architecture on Google Cloud and following a strategic migration plan, Cymbal can create new opportunities for innovation, gain a competitive edge through data-driven insights, and build a scalable and cost-effective platform for the future.
